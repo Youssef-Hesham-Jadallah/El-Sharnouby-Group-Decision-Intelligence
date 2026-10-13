@@ -1,169 +1,133 @@
-<div align="center">
+# El-Sharnouby Group Decision Intelligence — "Control Room"
 
-# Sharnouby Intelligence
+A decision-support platform for **El-Sharnouby Group (Leo Moda)** that turns 20 operational tables into ranked findings, evidence-backed explanations, forecasts with measured error, and trackable actions across sales, margin, stock, factory, suppliers, marketing, quality and customers.
 
-### From data to decisions, across the whole business.
+Every number is labelled **measured**, **forecast** or **assumption**, and the platform says *"not sure"* when the data cannot support a conclusion. It supports scenario testing, early-warning findings with root-cause hypotheses, a decision log, and a bilingual Arabic/English interface with RTL support and light/dark themes.
 
-A decision-intelligence platform for **El-Sharnouby Group (Leo Moda)**: fabric manufacturing, garment production, printing, retail, wholesale and online. Built for the **HVIA Data & AI Solutions · Task 02** challenge.
+> Built for **HVIA Data & AI Solutions — Task 02** during an internship. Figures come from **modeled / anonymised training data**. This is a historical analysis: there are **no live integrations** (no ERP, machine or supplier feed).
 
-![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?logo=javascript&logoColor=black)
-![Languages](https://img.shields.io/badge/UI-English%20%7C%20%D8%B9%D8%B1%D8%A8%D9%8A-5B3FD4)
-![Data](https://img.shields.io/badge/data-historical%20%C2%B7%20modeled-lightgrey)
-![Live](https://img.shields.io/badge/live%20integrations-none-lightgrey)
+## Quick start
+```bash
+python -m venv .venv && source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+export LOOM_RAW=/path/to/csv_folder                       # Windows PowerShell: $env:LOOM_RAW="C:\path\to\csv_folder"
+python pipeline/build.py                                  # ~15 s -> dist/data.json
+python build_html.py                                      # -> dist/loom.html (single file, opens offline)
+```
+The raw tables are **not in this repository** (privacy). Put the 20 CSV files in one folder and point `LOOM_RAW` at it. Open `dist/loom.html` in any browser; no server is needed. Set `LOOM_OUT` to write `data.json` elsewhere. Licensed *Thmanyah* fonts are not shipped; set `SHARNOUBY_FONTS` if you have them, otherwise system fonts are used.
 
-[What it does](#what-it-does) · [Modules](#modules) · [Architecture](#architecture) · [Run it](#run-it) · [Data and privacy](#data-and-privacy) · [Limits](#honest-limits)
+## What is new in this version
+| Area | What |
+|---|---|
+| **Control Room** | Management landing page, ordered by decision importance, with drill-down to channel, family and period. Replaces the earlier "Command Center". |
+| **Demand vs Capacity** | New module (15). Forecast → bill-of-materials need → **order-by date per material**, with a selectable need-by month and lead-time basis (standard / average / 90th percentile). |
+| **Three new findings** | F-11 cost of poor quality, F-12 at-risk wholesale and retail customers, F-13 December peak vs material lead times, each with evidence and an action (ACT-11 to ACT-13). |
+| **Ask the data** | 11 prepared questions answered from the loaded numbers, each linking to the module that holds the evidence. A question finder, **not** a free-text chatbot. |
+| **Print / Save PDF** | One-click print on every page, with print styling. |
+| **Arabic** | Complete Arabic interface including the new pages, right-to-left layout. |
+| **Reproducible build** | `LOOM_RAW` / `LOOM_OUT` environment variables; the pipeline rebuilds `data.json` from the CSVs. |
 
-</div>
+Kept from earlier versions: the analysis modules, Insights & Actions, Decision Log with owner/status/due date, System Map, Data Trust, light/dark theme, command palette (Ctrl/Cmd+K), model scorecards.
 
----
+## Backtest (hold-out Jul–Sep 2026, `pipeline/forecast.py`, page *Data Trust*)
+Forecast methods were fitted on months **before** the hold-out and scored on the last 3 months at product level (59 products) and at channel-total level. Metric: WAPE (lower is better); bias is signed.
 
-## What it does
+| Method | Product-level WAPE | Channel-total WAPE | Bias |
+|---|---|---|---|
+| **Seasonal-naive × 12-month growth** (chosen) | **30.4%** | **4.5%** | +3.8% |
+| 60/40 blend (seasonal + average) | 32.1% | 6.9% | +0.3% |
+| 12-month moving average | 54.2% | 15.3% | −5.0% |
 
-Most dashboards show *what happened*. This project tries to answer four questions for every number it shows:
+Reading: a seasonal pattern beats averaging by a wide margin in all three channels, so a heavier model was not adopted. Product-level error is much higher than channel-total error, so forecasts are trusted for planning volumes, **not** for individual SKU orders. A rolling-origin check over 10 monthly origins (Oct 2025 to Jul 2026) gives product-level WAPE between **23.9% and 36.4%**.
 
-| | Question | What the platform provides |
+**Models that were rejected on evidence**
+| Model | Result | Decision |
 |---|---|---|
-| **1** | What is happening? | Measured KPIs by channel, family, branch and period |
-| **2** | Why? | Evidence, and a clear label: *arithmetic*, *correlated*, *plausible*, *unknown* or *ruled out* |
-| **3** | What may happen? | Forecasts checked with a backtest, with their error shown |
-| **4** | What should we do? | Ranked actions with owner, effort, confidence, risk and a KPI to track |
+| Customer churn (6-month horizon, train to Sep 2025, test to Mar 2026, 20,854 test customers) | AUC **0.54** (0.5 = coin flip) | **Not deployed.** Lapse is described with RFM rules and observed re-purchase rates instead. |
+| Volume response to discount depth (per channel) | 95% intervals include zero in Online, Retail and Wholesale | No volume gain from discount is claimed; the discount cap is modelled with a break-even, not a promised effect. |
+| Platform-reported marketing ROAS | Platforms claim **2.9x** the revenue the business actually sold online and direct | Budgets are judged on blended MER; attribution is flagged as unreliable. |
 
-The 15 modules share one data model, so a finding in one place changes the advice in another. For example, a demand peak in the forecast flows into the material **order-by dates**, and into the **Early Warning** findings.
+## Key results on the modeled data
+13 ranked findings (severity 1–4, with confidence), each linked to an action. Highlights:
 
-## Modules
+| # | Finding | Evidence | Confidence |
+|---|---|---|---|
+| F-01 | Wholesale discounts are not tied to order size | Spearman ρ = 0.003 across 46,672 lines | High |
+| F-03 | Stock is in the wrong place | Wholesale median cover **17 days**; store 236, online 187 | Medium |
+| F-04 | Two suppliers deliver late far more than peers | On-time 40% and 35% vs about 70% | High |
+| F-06 | Marketing revenue cannot be reconciled with sales | Reported revenue is 2.9x actual direct sales | High |
+| F-11 | Poor quality costs about **EGP 6.5M** a year (4.4% of net sales) before production rejects | QC loss, print rework, quality refunds | Medium |
+| F-13 | December forecast about **56% above October**; materials take up to **22 days** | The risk is timing, not machine hours | Medium |
 
-| # | Module | Focus |
-|---|---|---|
-| 01 | **Control Room** | One screen for management, ordered by importance, with drill-down |
-| 02 | **Inventory & Replenishment** | Cover, stock-out and excess risk, reorder needs |
-| 03 | **Customer 360** | RFM segments, repeat purchase, at-risk accounts |
-| 04 | **Factory & Production** | Bottlenecks, delays, overtime, downtime |
-| 05 | **Marketing & Growth** | Platform performance and attribution limits |
-| 06 | **Channels & Expansion** | Channel and location comparison |
-| 07 | **Procurement & Suppliers** | On-time delivery, price, lead time, dependency |
-| 08 | **What-If Simulator** | Compare scenarios against the baseline |
-| 09 | **Early Warning** | Signals and findings with evidence and next steps |
-| 10 | **Profitability** | Margin by product, channel and customer, waterfall view |
-| 11 | **Stock Rebalancing** | Transfers between locations before producing or buying |
-| 12 | **Quality & Returns** | Cost of poor quality, defects, returns |
-| 13 | **Decision Log** | Status, owner and due date for every action |
-| 14 | **Discount Discipline** | Discount depth against volume and margin |
-| 15 | **Demand vs Capacity** | Forecast to bill-of-materials to order-by dates |
-| · | **Insights & Actions** | Ranked findings and recommended actions |
-| · | **System Map** | How the modules feed each other |
-| · | **Ask the data** | Prepared questions answered from the loaded numbers |
-| · | **Data Trust** | Data checks, definitions and model scorecards |
+Modelled profit actions are shown as **ranges, not promises** (for example capping wholesale discounts at 32%: EGP 1.7M to 3.3M a year, positive until 52% of affected volume is lost). Actions that cannot be priced from the data, such as supplier recovery or at-risk customer calls, are shown unpriced rather than invented.
+
+> Gains are measured **inside the modeled dataset**. They show how the analysis works and how trade-offs behave, not a claim about verified savings.
 
 ## Architecture
-
-There is **no server**. Analysis runs once in Python and the result is embedded in a single HTML file that the browser renders.
-
 ```mermaid
 flowchart LR
-    A[CSV tables<br/>not in this repo] --> B[pipeline/<br/>Python analysis]
-    B --> C[dist/data.json<br/>computed results]
-    C --> D[build_html.py]
-    E[web/<br/>JS views + CSS + Arabic dictionary] --> D
-    D --> F[dist/loom.html<br/>single file, opens offline]
+  CSV[20 CSV tables<br/>not in repo] -->|load + validate| PIPE
+  subgraph PIPE[pipeline/ Python]
+    CORE[core cube] --> INS[findings + signals]
+    FC[forecast + backtest] --> INS
+    INV[inventory + rebalance] --> INS
+    FAC[factory + procurement + quality] --> INS
+    MKT[marketing + customers] --> INS
+    INS --> ACT[actions + extra_findings]
+  end
+  PIPE --> JSON[(dist/data.json)]
+  WEB[web/ JS views + CSS + ar.json] --> BUILD[build_html.py]
+  JSON --> BUILD
+  BUILD --> HTML[dist/loom.html<br/>single file, offline]
+  HTML --> BROWSER[Browser: filters, charts, decision log in localStorage]
 ```
+There is **no server**. Analysis runs once in Python; the browser renders the embedded result and calculates filters and scenarios locally from a pre-aggregated cube. Decision Log status and owners are saved in the browser's `localStorage` only (not shared between users).
 
-| Layer | Path | Role |
-|---|---|---|
-| Analysis | `pipeline/*.py` | Reads the tables, builds KPIs, forecasts, findings and actions |
-| Interface | `web/*.js`, `web/loom.css` | Views, charts, filters, light/dark theme |
-| Language | `web/ar.json`, `web/i18n.js` | Full Arabic UI with right-to-left layout |
-| Build | `build_html.py` | Bundles everything into `dist/loom.html` |
+Modules: Control Room · Insights & Actions · System Map · Profitability · Discount Discipline · Channels & Expansion · Customer 360 · Marketing & Growth · Inventory & Replenishment · Stock Rebalancing · Factory & Production · Procurement & Suppliers · Quality & Returns · Demand vs Capacity · What-If Simulator · Early Warning · Decision Log · Ask the data · Data Trust.
 
-Filters (period, channel, family) are calculated in the browser from a pre-aggregated cube, so the page needs no network. Status and owner changes in the Decision Log are saved in the browser's `localStorage` only.
+## Data integrity (page *Data Trust*)
+20 tables are profiled and **13 checks** are run: **2 pass, 10 warn, 1 fail**. They are shown to the user, not hidden:
+- Pass: net sales = gross × (1 − discount) on every invoice line; sales units reconcile to inventory sold quantity.
+- Warn: refunds are not deducted from net sales; inventory roll-forward breaks on 147 rows; factory output is 3.7x units sold; two materials are purchased but have no BOM line; no material stock balances.
+- Fail: marketing attributed revenue is 2.9x actual direct sales.
 
-## Run it
+Because of the warnings, production, purchasing and marketing figures are used for **ratios and rankings**, not for a profit reconciliation.
 
-**Requirements:** Python 3.12, `pandas`, `numpy`, `scipy`, `scikit-learn`.
+## Assumptions (read before presenting)
+1. Data is modeled / anonymised training data; confirm EGP amounts against the ledger before acting.
+2. No live feed: capacity is the **published** hub figure (5,000 pieces/day), not a measurement, and recorded output does not reconcile with sales, so capacity is relative.
+3. Open purchase orders and material stock balances are not in the data; order-by dates ignore orders already in transit.
+4. Lead times are historical (average and 90th percentile), not supplier commitments.
+5. Store footfall and local competition are not in the data, so the cause of the store sales decline cannot be identified.
+6. Impact ranges use stated assumptions (for example an assumed 10% to 30% reduction for ACT-11); they are bounds, not measured effects.
 
-```bash
-pip install pandas numpy scipy scikit-learn
-```
+## Not included (on purpose)
+Live ERP, machine or supplier integrations; a backend API or database (a single HTML file was chosen so it opens offline and can be audited); user accounts (the Decision Log is per browser); a mathematical optimizer (scenarios use transparent calculators and stock rebalancing uses a rule-based allocation, because no objective, constraints and cost data justified an optimizer); a customer churn model (rejected, see above); causal marketing attribution; an automated unit-test suite (integrity is checked by the 13 data checks and by rebuilding `data.json` from the CSVs).
 
-**1. Put your CSV tables in a folder** (the original dataset is not included, see below), then run the analysis:
+## 4-minute demo
+1. **Control Room** → headline, the chain strip (suppliers to profit), top findings.
+2. **Insights & Actions** → open F-01, read the evidence and the *Arithmetic / Plausible / Unknown* labels, then the ranked actions.
+3. **Discount Discipline** → move the cap and watch the break-even.
+4. **Demand vs Capacity** → pick *Dec 2026* and *90th percentile*, read the order-by dates.
+5. **What-If Simulator** → price, demand shock, supplier delay, marketing and capacity tabs against the baseline.
+6. **Early Warning** → one finding with confidence and investigation steps.
+7. **Decision Log** → set an owner and status for ACT-01.
+8. **Ask the data** → "Why did gross margin stay flat while sales grew?" → open the evidence.
+9. **Data Trust** → the failing check and the rejected churn model. Toggle **Arabic** and the dark theme, then **Print / Save PDF**.
 
-```bash
-# Linux / macOS
-LOOM_RAW=/path/to/csv_folder python3 pipeline/build.py
-
-# Windows PowerShell
-$env:LOOM_RAW="C:\path\to\csv_folder"; python pipeline/build.py
-```
-
-This writes `dist/data.json`. Set `LOOM_OUT` to write somewhere else.
-
-**2. Build the page:**
-
-```bash
-python3 build_html.py
-```
-
-Open `dist/loom.html` in a browser. Arabic / English and light / dark are switchable from the top bar.
-
-> The interface uses licensed *Thmanyah* fonts that are not part of this repo. If you have them, set `SHARNOUBY_FONTS` to their folder. Otherwise the page falls back to system fonts.
-
-## Data and privacy
-
-- The dataset is **modeled / anonymised training data** supplied for the challenge.
-- **The raw tables are not in this repository**, and `data_raw/` should stay out of version control.
-- Every figure the platform shows is labelled as *measured*, *forecast* or *assumption*, and its source table is listed on the page.
-
-Suggested `.gitignore`:
-
-```
-data_raw/
-*.csv
-__pycache__/
-```
-
-## Honest limits
-
-This project is built to say what it does **not** know:
-
-- **No live integrations.** Everything is historical data. There is no machine, ERP or supplier feed, so "Factory" is a planning view, not a digital twin.
-- **Not all numbers reconcile.** Recorded production output is several times the units sold, so production and purchasing are used for ratios and rankings, not for a profit reconciliation.
-- **Attribution is not proven.** Marketing platforms together claim far more revenue than the business sold, so budgets should not move on reported ROAS alone.
-- **A weak model is not deployed.** The customer churn model barely beat chance, so the platform uses RFM rules and observed re-purchase rates instead.
-- **Impact ranges are modelled bounds**, not verified savings. Capacity figures are the published ones, not measurements. Open purchase orders and material stock balances are not in the data.
+Shortcut: **Ctrl/Cmd+K** jumps to any page.
 
 ## Project structure
-
 ```
 .
-├── pipeline/          # Python analysis (KPIs, forecast, findings, actions)
-├── web/               # JavaScript views, CSS, Arabic dictionary
-├── assets/            # Embedded-font block reused by the build
-├── dist/              # Generated output (data.json, loom.html)
-├── build_html.py      # Bundles everything into one file
-└── CHANGES.md         # What changed in this version
+├── pipeline/        # Python analysis: core, forecast, inventory, factory, procurement, marketing, customers, actions
+├── web/             # JavaScript views, CSS, Arabic dictionary (ar.json)
+├── assets/          # Embedded-font block reused by the build
+├── dist/            # Generated: data.json, loom.html
+├── build_html.py    # Bundles everything into one HTML file
+├── requirements.txt
+└── CHANGES.md
 ```
 
 ## Credits
-
-Built during an internship at **HVIA Data & AI Solutions** under the supervision of **Eng. Ayman**.
-
----
-
-<details>
-<summary><b>ملخص بالعربي</b></summary>
-
-<div dir="rtl">
-
-**Sharnouby Intelligence** منصة دعم قرار لشركة الشرنوبي (Leo Moda). بدل ما تعرض أرقام بس، كل رقم فيها بيجاوب على: إيه اللي بيحصل؟ ليه؟ إيه المتوقع؟ نعمل إيه وبأي مخاطرة؟
-
-- **15 وحدة مترابطة**: الكنترول روم، المخزون، العملاء، المصنع، التسويق، الموردين، الربحية، الإنذار المبكر، محاكي السيناريوهات، الطلب مقابل الطاقة وغيرها.
-- **واجهة عربي وإنجليزي** كاملة، ووضع فاتح وغامق.
-- **مفيش سيرفر**: تحليل بايثون بيتشغل مرة واحدة، والنتيجة متضمّنة في ملف HTML واحد.
-- **الداتا غير موجودة في الريبو** لأسباب الخصوصية، وهي بيانات تدريب modeled.
-- **مفيش ربط لحظي**، والأرقام تاريخية، وكل رقم عليه مصدره وهل هو مقاس أو متوقع أو افتراض.
-
-للتشغيل: ضع ملفات الـ CSV في فولدر، شغّل `pipeline/build.py` مع `LOOM_RAW`، ثم `build_html.py`.
-
-</div>
-
-</details>
+Built during an internship at **HVIA Data & AI Solutions**, under the supervision of **Eng. Ayman**.
