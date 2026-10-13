@@ -10,7 +10,7 @@ Every number is labelled **measured**, **forecast** or **assumption**, and the p
 ```bash
 python -m venv .venv && source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-export LOOM_RAW=/path/to/csv_folder                       # Windows PowerShell: $env:LOOM_RAW="C:\path\to\csv_folder"
+export RAW=/path/to/csv_folder                       # Windows PowerShell: $env:LOOM_RAW="C:\path\to\csv_folder"
 python pipeline/build.py                                  # ~15 s -> dist/data.json
 python build_html.py                                      # -> dist/loom.html (single file, opens offline)
 ```
