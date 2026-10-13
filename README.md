@@ -14,9 +14,8 @@ export RAW=/path/to/csv_folder                       # Windows PowerShell: $env:
 python pipeline/build.py                                  # ~15 s -> dist/data.json
 python build_html.py                                      # -> dist/loom.html (single file, opens offline)
 ```
-The raw tables are **not in this repository** (privacy). Put the 20 CSV files in one folder and point `LOOM_RAW` at it. Open `dist/loom.html` in any browser; no server is needed. Set `LOOM_OUT` to write `data.json` elsewhere. Licensed *Thmanyah* fonts are not shipped; set `SHARNOUBY_FONTS` if you have them, otherwise system fonts are used.
 
-## What is new in this version
+## What is in this version
 | Area | What |
 |---|---|
 | **Control Room** | Management landing page, ordered by decision importance, with drill-down to channel, family and period. Replaces the earlier "Command Center". |
