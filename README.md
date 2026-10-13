@@ -1,6 +1,6 @@
 # El-Sharnouby Group Decision Intelligence — "Control Room"
 
-A decision-support platform for **El-Sharnouby Group (Leo Moda)** that turns 20 operational tables into ranked findings, evidence-backed explanations, forecasts with measured error, and trackable actions across sales, margin, stock, factory, suppliers, marketing, quality and customers.
+A decision-support platform for **El-Sharnouby Group ** that turns 20 operational tables into ranked findings, evidence-backed explanations, forecasts with measured error, and trackable actions across sales, margin, stock, factory, suppliers, marketing, quality and customers.
 
 Every number is labelled **measured**, **forecast** or **assumption**, and the platform says *"not sure"* when the data cannot support a conclusion. It supports scenario testing, early-warning findings with root-cause hypotheses, a decision log, and a bilingual Arabic/English interface with RTL support and light/dark themes.
 
